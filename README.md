@@ -1,7 +1,6 @@
 # watson-perl  
-### an inline issue manager
+### an inline todo and issue manager
 [watson](http://goosecode.com/watson) ([mirror](http://nhmood.github.io/watson-perl)) is a tool for creating and tracking bug reports, issues, and internal notes in code.    
-It is avaliable in two flavors, [watson-ruby](http://github.com/nhmood/watson-ruby) and [watson-perl](http://github.com/nhmood/watson-perl)
 
 ### See watson in action [here](http://goosecode.com/watson) ([mirror](http://nhmood.github.io/watson-perl))
 
@@ -36,7 +35,6 @@ You could clone the repo and then perform the linking step so all you need to do
 There will probably be a install script in the style of ``` wget link-to-script | sh ``` at some point.  
 Some people aren't a fan of this but it is the most convinient. Feel free to implement this and submit a pull request!
 
-
 ## Usage
 For a quick idea of how to use watson, check out the [app demo](http://goosecode.com/watson)! ([mirror](http://nhmood.github.io/watson-perl))   
 See below for a description of what all the command line arguments do.
@@ -46,6 +44,7 @@ See below for a description of what all the command line arguments do.
 Usage: watson [OPTION]...
 Running watson with no arguments will parse with settings in RC file
 If no RC file exists, default RC file will be created
+List elements are space separated
 
    -d, --dirs                   list of directories to search in
    -f, --files                  list of files to search in
@@ -56,18 +55,11 @@ If no RC file exists, default RC file will be created
    -t, --tags                   list of tags to search for
    -v, --version                print watson version and info
 
-Any number of files, tags, dirs, and ignores can be listed after flag
-Ignored files should be space separated
-To use *.filetype identifier, encapsulate in "" to avoid shell substitutions
-
-Report bugs to: watson@goosecode.com
+Report bugs to: eugene@kolobyte.com
 watson home page: <http://goosecode.com/projects/watson>
+[kolobyte] | 2015-
 [goosecode] labs | 2012-2013
-
 ```
-### All file/directory/tag related parameters support relative as well as absolute paths.   
-
-
 ### -d, --dirs [DIRS]  
 This parameter specifies which directories watson should parse through.  
 It should be followed by a space separated list of directories that should be parsed.  
@@ -118,30 +110,17 @@ The .watsonrc is placed in every directory that watson is run from as opposed to
 For example, a C/C++ project might want to look in src/ and ignore obj/ whereas a Ruby project might want to look in lib/ and ignore assets/.  
 
 The .watsonrc file is fairly straightforward...  
-**[dirs]** - This is a newline separated list of directories to look in while parsing.
-
-**[tags]** - This is a newline separated list of tags to look for while parsing.
-
-**[ignore]** - This is a newline separated list of files / folders to ignore while parsing.  
-This supports wildcard type selecting by providing .filename (no * required)
-
+**[dirs]** - This is a newline separated list of directories to look in while parsing.  
+**[tags]** - This is a newline separated list of tags to look for while parsing.  
+**[ignore]** - This is a newline separated list of files / folders to ignore while parsing.
+This supports wildcard type selecting by providing .filename (no * required)  
 **[(github/bitbucket)]** - If a remote is established, the API key for the corresponding remote is stored here.  
 Currently, OAuth has yet to be implemented for Bitbucket so the Bitbucket username is stored here.
-
 **[(github/bitbucket)_repo]** - The repo name / path is stored here.  
-
+**[tag_format]** - The format of the comment tag to search for, TAG, COMMENT, and USERNAME are required.
 The remote related .watsonrc options shouldn't need to be edited manually, as they are automatically populated when the -r, --remote setup is called.
 
 ## Special Thanks
 Special thanks to [@samirahmed](http://twitter.com/samirahmed) for his super Ruby help and testing watson-ruby!  
-Special thanks to [@eugenekolo](http://twitter.com/eugenekolo) [[email](eugenek@bu.edu)] for his super Perl help!  
+Special thanks to [@eugenekolo](http://twitter.com/eugenekolo) [[email](eugene@kolobyte.com)] for his super Perl help!
 Special thanks to [@crowell](http://github.com/crowell) for helping test out watson-ruby!
-
-## FAQ
-- **Why Perl?**  
-	I wanted to learn Perl and this seemed like a pretty decent project 
-
-- **Why is the Perl version different from the Ruby version?**  
-	The Ruby version was developed after the Perl version was made. Because of this, it was a lot easier to add on features that were thought of while/after making the Perl version as the plumbing was still being setup.  
-	With a combination of wanting to finish watson-ruby as well as laziness, some of the improvements that were added to watson-ruby *have yet* to be pulled back into watson-perl.  
-	If you are interested in helping out or maintaining watson-perl let me know!
