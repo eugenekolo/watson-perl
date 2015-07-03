@@ -1,12 +1,10 @@
-# watson-perl  
+# watson-kolo
 ### an inline todo and issue manager
-[watson](http://goosecode.com/watson) ([mirror](http://nhmood.github.io/watson-perl)) is a tool for creating and tracking bug reports, issues, and internal notes in code.    
-
-### See watson in action [here](http://goosecode.com/watson) ([mirror](http://nhmood.github.io/watson-perl))
+Watson is a tool for creating and tracking bug reports, issues, and internal notes in code.    
+See watson in action [here](http://goosecode.com/watson) ([mirror](http://nhmood.github.io/watson-perl))
 
 ## Installation
-watson-perl has been tested with **Perl v5.18.1** (on **Arch Linux**)  
-watson-perl is self contained in a single file and has **no** CPAN dependencies.  
+watson-kolo is self contained in a single file and has **no** CPAN dependencies.  
 ```
 # Download watson and set watson to executable
 wget https://raw.github.com/nhmood/watson-perl/master/watson -O watson
@@ -43,9 +41,10 @@ watson home page: <http://goosecode.com/projects/watson>
 ```
 
 ## .watsonrc
-watson supports an RC file that allows for reusing commong settings without repeating command line arguments every time.  
+watson supports an RC file that allows for reusing common settings without repeating command line arguments every time.  
 
 The .watsonrc is placed in every directory that watson is run from as opposed to a unified file (in ~/.watsonrc for example). The thinking behind this is that each project may have a different set of folders to ignore, directories to search through, and tags to look for.  
+
 For example, a C/C++ project might want to look in src/ and ignore obj/ whereas a Ruby project might want to look in lib/ and ignore assets/.  
 
 The .watsonrc file is fairly straightforward...  
@@ -57,9 +56,10 @@ This supports wildcard type selecting by providing .filename (no * required)
 Currently, OAuth has yet to be implemented for Bitbucket so the Bitbucket username is stored here.
 **[(github/bitbucket)_repo]** - The repo name / path is stored here.  
 **[tag_format]** - The format of the comment tag to search for, TAG, COMMENT, and USERNAME are required.
+
 The remote related .watsonrc options shouldn't need to be edited manually, as they are automatically populated when the -r, --remote setup is called.
 
 ## Special Thanks
 Special thanks to [@samirahmed](http://twitter.com/samirahmed) for his super Ruby help and testing watson-ruby!  
-Special thanks to [@eugenekolo](http://twitter.com/eugenekolo) [[email](eugene@kolobyte.com)] for his super Perl help!  
+Special thanks to [@eugenekolo](http://twitter.com/eugenekolo) for his super Perl help!  
 Special thanks to [@crowell](http://github.com/crowell) for helping test out watson-ruby!
