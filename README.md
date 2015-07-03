@@ -7,33 +7,18 @@
 ## Installation
 watson-perl has been tested with **Perl v5.18.1** (on **Arch Linux**)  
 watson-perl is self contained in a single file and has **no** CPAN dependencies.  
-
-### From Repo  
-The easiest way to get watson-perl is probably...
 ```
-# Download watson to current directory with wget
-# and set watson to executable
+# Download watson and set watson to executable
 wget https://raw.github.com/nhmood/watson-perl/master/watson -O watson
 sudo chmod +x watson 
-
-# OR Download watson to current directory with curl
-# and set watson to executable
-curl http://github.com/nhmood/watson-perl/watson-perl -o watson
-sudo chmod +x watson 
-
-# Copy watson to /usr/bin, which is most likely in your PATH
 sudo cp watson /usr/bin
-
-# OR make a soft link to it into /usr/bin
-sudo ln -s watson /usr/bin
-
 ```
-You could clone the repo and then perform the linking step so all you need to do to update watson-perl is a ```git pull``` to stay up to date without having to redownload.  
-
-
-### Script Install (Coming soon...)  
-There will probably be a install script in the style of ``` wget link-to-script | sh ``` at some point.  
-Some people aren't a fan of this but it is the most convinient. Feel free to implement this and submit a pull request!
+You might want updates, if so you should clone the repo instead.
+```
+git clone git@github.com:eugenekolo/watson-perl.git
+sudo chmod +x watson 
+sudo ln -s watson /usr/bin
+```
 
 ## Usage
 For a quick idea of how to use watson, check out the [app demo](http://goosecode.com/watson)! ([mirror](http://nhmood.github.io/watson-perl))   
@@ -46,13 +31,13 @@ Running watson with no arguments will parse with settings in RC file
 If no RC file exists, default RC file will be created
 List elements are space separated
 
-   -d, --dirs                   list of directories to search in
+   -d, --dirs                   list of directories to search in, default: current dir
    -f, --files                  list of files to search in
    -h, --help                   print help
    -i, --ignore                 list of files, directories, or types to ignore
-   -p, --parse-depth            depth to recursively parse directories
-   -r, --remote                 list / create tokens for Bitbucket/Github
-   -t, --tags                   list of tags to search for
+   -p, --parse-depth            depth to recursively parse directories, default: unlimited
+   -r, --remote                 list / create tokens for 'GITHUB' or 'BITBUCKET'
+   -t, --tags                   list of tags to search for, limited to [Aa-Zz0-9]
    -v, --version                print watson version and info
 
 Report bugs to: eugene@kolobyte.com
@@ -60,48 +45,6 @@ watson home page: <http://goosecode.com/projects/watson>
 [kolobyte] | 2015-
 [goosecode] labs | 2012-2013
 ```
-### -d, --dirs [DIRS]  
-This parameter specifies which directories watson should parse through.  
-It should be followed by a space separated list of directories that should be parsed.  
-If watson is run without this parameter, the current directory is parsed.  
-
-
-### -f, --files [FILES]
-This parameter specifies which files watson should parse through.  
-It should be followed by a space separated list of files that should be parsed.  
-
-
-### -h, --help
-This parameter displays the list of avaliable options for watson.
-
-
-### -i, --ignore [IGNORES]
-This parameter specifies which files and directories watson should ignore when parsing.  
-It should be followed by a space separated list of files and/or directories to be ignored.  
-This parameter should be used as an opposite to -d/-f, when there are more files that should be parsed in a directory than should be ignored.
-
-
-### -p, --parse-depth [PARSE_DEPTH]
-This parameter specifies how deep watson should recursively parse directories.  
-The 'depth' is defined as how many levels deep from the top-most specified directory to parse.  
-If individual directories are passed with the -d (--dirs) flag, each will be parsed PARSE_DEPTH layers, regardless of their depth from the current directory.  
-If watson is run without this parameter, the parsing depth is unlimited and will search through all subdirectories found.
-
-
-### -r, --remote [GITHUB, BITBUCKET]
-This parameter is used to both list currently established remotes as well as setup new ones.  
-If passed without any options, the currently established remotes will be listed.  
-If passed with a github or bitbucket argument, watson will proceed to ask some questions to set up the corresponding remote.  
-
-
-### -t, --tags [TAGS]
-This parameter is used to specify which tags watson should look for when parsing.  
-The tag currently supports any regular character and number combination, no special (!@#$...) characters.  
-
-
-## -v, --version
-This parameter displays the current version of watson you are running.
-
 
 ## .watsonrc
 watson supports an RC file that allows for reusing commong settings without repeating command line arguments every time.  
