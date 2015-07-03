@@ -20,10 +20,6 @@ sudo chmod +x watson
 sudo ln -s watson /usr/bin
 ```
 
-## Usage
-For a quick idea of how to use watson, check out the [app demo](http://goosecode.com/watson)! ([mirror](http://nhmood.github.io/watson-perl))   
-See below for a description of what all the command line arguments do.
-
 ## Command line arguments
 ```
 Usage: watson [OPTION]...
