@@ -31,7 +31,7 @@
 # Global parameters
 ###########################################################
 # App Config
-my $DEBUG = $ENV{WATSON_DEBUG};
+my $DEBUG = 1;
 my $RCNAME = ".watsonrc"; # Change config file name
 my $TMPOUT = ".watsonresults";	# Change tmp file name
 
@@ -1421,7 +1421,8 @@ sub parseFile {
 	# Read source file line by line
 	while (my $line = <$wf>){
 	    # Find any comment line with [tag] - text (any comb of space and #)
-	    if ($line =~ /\s*(?:$comment)+\s*\[(\S+)\]\s*-\s*(.+)/) {
+	    # TODO(eugenek): Changed to Googleish Style {COMMENT}{SP*}{TAG}{USERNAME}{:?}{SP*}{TEXT}
+	    if ($line =~ /\s*(?:$comment)+\s*(\w+)\(\S+\):\s*(.+)/) {
 			my ($ftag, $fissue) = ($1, $2);
 			debugPrint("Issue found!\n");
 			debugPrint("Tag: $ftag\n");
