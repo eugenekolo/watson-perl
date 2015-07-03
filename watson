@@ -4,10 +4,11 @@
 # eugenekolo @ [kolobyte] | 2015-
 # nhmood @ [goosecode labs] | 2012-2015
 
-# TODO(eugenek): [HIGH] Add more customizability to tags
+# TODO(eugenek): [HIGH] Add username displayed on the parsed log print
 # TODO(nhmood): [HIGH] progress bar for obtaining github/bitbucket issue list
 # TODO(nhmood): [HIGH] add remote / local options and necessary logic
 
+# TODO(eugenek): [MEDIUM] Add more customizability to tags
 # TODO(nhmood): [MEDIUM] command line option to remove remote repos
 # TODO(nhmood): [MEDIUM] generate .html file with report
 # TODO(nhmood): [MEDIUM] wrap printed lines around 80 characters
@@ -73,6 +74,7 @@ my $IGNORE_RC_IGNORE = 0;
 my $HASLESS = 0;
 my $HASCURL = !system("which curl > /dev/null 2>&1");
 my $LESSOUT;
+my $TAG_FORMAT;
 
 use constant GITHUB => 0; # TODO(eugenek): What does `use constant` do?
 use constant BITBUCKET => 1;
@@ -414,6 +416,11 @@ sub parseConfig {
 			# Get list of issues, also checks if API key is valid
 			getBitbucketIssues() unless $REMOTESETUP;
 		},
+		tag_format => sub {
+			my ($line) = @_;
+			debugPrint("tag_format: $line\n");
+			$TAG_FORMAT = $line;
+		}
 	);
 
 	# Read rc line by line
@@ -1419,8 +1426,14 @@ sub parseFile {
 	while (my $line = <$wf>){
 	    # Find any comment line with [tag] - text (any comb of space and #)
 	    # TODO(eugenek): Changed to Googleish Style {COMMENT}{SP*}{TAG}{USERNAME}{:?}{SP*}{TEXT}
-	    if ($line =~ /\s*(?:$comment)+\s*(\w+)\(\S+\):\s*(.+)/) {
-			my ($ftag, $fissue) = ($1, $2);
+	    # TODO(eugenek): Make this more generic. But seems to match same feature+username that watson-ruby has
+	    my $tag_format = $TAG_FORMAT;
+	    $tag_format =~  s/TAG/\(\\w\+\)/;
+	    $tag_format =~ s/USERNAME/\(\\w\+\)/;
+	    $tag_format =~ s/COMMENT/\(\.\+\)/;
+	    $tag_format =~ s/\s/\\s\+/;
+	    if ($line =~ /^(?:\s*(?:$comment)+\s*)+$tag_format/) {
+			my ($ftag, $username, $fissue) = ($1, $2, $3);
 			debugPrint("Issue found!\n");
 			debugPrint("Tag: $ftag\n");
 			debugPrint("Issue: $fissue\n");
@@ -1481,6 +1494,12 @@ todo
 [ignore]
 .git
 .swp
+
+# Requires \ to escape regex chars ATM.
+# TAG, USERNAME, and COMMENT are required right now
+# TODO(eugenek): Make this regex_escape and allow better customization
+[tag_format]
+TAG\(USERNAME\): COMMENT
 EOF
 
 	debugPrint($rcdefault);
