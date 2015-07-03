@@ -1,10 +1,8 @@
 #!/usr/bin/perl
-# watson - inline issue manager
-# nhmood @ [goosecode labs] | 2012
-# Copyright (c) 2012-2013 goosecode labs
-# This content is licensed under the MIT License
-# See the file LICENSE for copying permission
 
+# watson - inline issue manager
+# eugenekolo @ [kolobyte] | 2015-
+# nhmood @ [goosecode labs] | 2012-2015
 
 # [todo] - add priority listing for tags and todo
 # [todo] - generate .html file with report
@@ -32,359 +30,73 @@
 ###########################################################
 # Global parameters
 ###########################################################
+# App Config
+my $DEBUG = $ENV{WATSON_DEBUG};
+my $RCNAME = ".watsonrc"; # Change config file name
+my $TMPOUT = ".watsonresults";	# Change tmp file name
 
 use strict;
 no strict 'refs';
 use feature qw/say/;  # implies dependency on perl 5.10
 use autodie; # in Core since 5.10
 use warnings;
-
-# For color print outs
-use Term::ANSIColor qw(:constants);
-
-# Route Ctrl-C to cExit to clean up results
-$SIG{'INT'} = \&cExit;
-
-# For debugging (print data structures)
 use Data::Dumper;
-
-# For MD5 Sum (issue posting check)
-use Digest::MD5 qw(md5_hex);
-
-# For proper JSON parsing
+use Term::ANSIColor qw(:constants);
 use JSON::PP;
+use Digest::MD5 qw(md5_hex);
+use File::Copy ();
 
-use File::Copy (); # in Core since 5.002
+$SIG{'INT'} = \&cExit; # Route Ctrl-C to cExit to clean up results
 
-# App Config
-my $DEBUG = $ENV{WATSON_DEBUG};
-my $RCNAME = ".watsonrc";		# Change config file name
-my $TMPOUT = ".watsonresults";	# Change tmp file name
-
-# Global variables
 my @DIRS;
 my @FILES;
 my @TAGS;
 my @IGNORE;
 my @STRUCTURE;
-my $REMOTESETUP = 0;
+
 my $GITHUB_VALID = 0;
 my $GITHUB_API;
 my $GITHUB_REPO;
 my $GITHUB_OPEN_ISSUES;
 my $GITHUB_CLOSED_ISSUES;
+
 my $BITBUCKET_VALID = 0;
 my $BITBUCKET_API;
 my $BITBUCKET_PW;
 my $BITBUCKET_REPO;
 my $BITBUCKET_OPEN_ISSUES;
 my $BITBUCKET_CLOSED_ISSUES;
+
+my $REMOTESETUP = 0;
 my $MAX_DEPTH = 0;
 my $IGNORE_RC_DIRS = 0;
 my $IGNORE_RC_FILES = 0;
 my $IGNORE_RC_TAGS = 0;
 my $IGNORE_RC_IGNORE = 0;
 my $HASLESS = 0;
-my $HASCURL = 0;
+my $HASCURL = !system("which curl > /dev/null 2>&1");
 my $LESSOUT;
 
-
-use constant GITHUB => 0;
+use constant GITHUB => 0; # TODO(eugenek): What does `use constant` do?
 use constant BITBUCKET => 1;
 
-
 #----------------------------------------------------------
-###########################################################
 # Main Program
-###########################################################
 #----------------------------------------------------------
 
+# TODO(eugenek): Group these into startup
 checkLess();
-checkcURL();
 printHeader();
+
 parseCommandLine();
-checkConfig();
 parseConfig();
 startScan();
 createReport();
 
-
-#----------------------------------------------------------
-###########################################################
-# Functions
-###########################################################
-#----------------------------------------------------------
-
-
-###########################################################
-# Header Print
-###########################################################
-
-# Print watson header
-sub printHeader {
-	wprint(BOLD "------------------------------\n");
-	wprint(BOLD "watson", RESET);
-	wprint(" - ");
-	wprint(BOLD YELLOW "inline issue manager\n\n", RESET);
-	my $pwd = `pwd`;
-	wprint("Run in: $pwd");
-	my $time = localtime;
-	wprint("Run @ $time\n");
-	wprint(BOLD "------------------------------\n\n");
-	return 1;
-}
-
-
-###########################################################
-# Help Print
-###########################################################
-
-# Print watson help
-sub printHelp {
-	print BOLD, <<'END_HELP', RESET;
-Usage: watson [OPTION]...
-Running watson with no arguments will parse with settings in RC file
-If no RC file exists, default RC file will be created
-
-   -d, --dirs			list of directories to search in
-   -f, --files			list of files to search in
-   -h, --help			say help
-   -i, --ignore			list of files, directories, or types to ignore
-   -p, --parse-depth		depth to recursively parse directories
-   -r, --remote			list / create tokens for Bitbucket/Github
-   -t, --tags			list of tags to search for
-   -v, --version		say watson version and info
-
-Any number of files, tags, dirs, and ignores can be listed after flag
-Ignored files should be space separated
-To use *.filetype identifier, encapsulate in \"\" to avoid shell substitutions
-
-
-Report bugs to: watson\@goosecode.com
-watson home page: <http://goosecode.com/projects/watson>
-[goosecode] labs | 2012-2013";
-END_HELP
-
-	return 1;
-}
-
-
-###########################################################
-# Help Print
-###########################################################
-
-# Print watson help
-sub printVersion {
-	print <<'END_VERSION';
-watson v1.3
-Copyright (c) 2012-2013 goosecode labs
-Licensed under MIT, see LICENSE for details
-
-Written by nhmood, see <http://goosecode.com/projects/watson>
-END_VERSION
-
-	return 1;
-}
-
-
-###########################################################
-# Clean Exit
-###########################################################
-
-# Clean exit function that removes temp files
-sub cExit {
-	my ($exit_status) = @_;
-
-	unlink $TMPOUT or warn "Could not remove $TMPOUT: $!" if (-e $TMPOUT);
-
-	# If exit status is INT(terupt), set to 1 and print newline
-	if ($exit_status eq "INT"){
-		$exit_status = 1;
-		print "\n";
-	}
-	exit $exit_status;
-}
-
-
-###########################################################
-# Debug Print
-###########################################################
-
-# Debug print statements that are only enabled
-# when debug flag is set (top of file)
-sub debugPrint {
-	print @_ if $DEBUG;
-}
-
-
-###########################################################
-# Output Print
-###########################################################
-
-# If system has less, dump all output to .tmp file and use less
-# If no less, just print straight to stdout
-sub wprint {
-	if ($HASLESS){
-		print $LESSOUT @_;
-		return 1;
-	}
-	else {
-		print @_;
-		return 0;
-	}
-}
-
-
-###########################################################
-# Unix less Checker
-###########################################################
-
-# Check to see if system has less
-# If so, set flag and open tmp file
-sub checkLess {
-	$HASLESS |= !system("which less > /dev/null 2>&1") or return 0;
-	open $LESSOUT, "+>", $TMPOUT;
-	return 1;
-}
-
-
-###########################################################
-# cURL Checker
-###########################################################
-
-# Check to see if system has cURL
-# If so, set flag
-sub checkcURL {
-  return $HASCURL |= !system("which curl > /dev/null 2>&1");
-}
-
-
-###########################################################
-# Directory checker
-###########################################################
-
-# checkDir - checks if directory can be opened
-# Different from just using -d, checks if able to OPEN
-sub checkDir {
-	my ($dir) = @_;
-
-	# Error check for input
-	unless (length $dir) {
-		wprint("No directories specified.\n");
-		return 0;
-	}
-
-	# Check if directory can be opened
-	opendir my $tDIR, $dir or do {
-		wprint(qq{Cannot open dir "$dir": $!\n});
-		return 0;
-	};
-
-	closedir $tDIR;
-	debugPrint(qq{"$dir" exists and opened successfully.\n});
-	return 1;
-}
-
-
-###########################################################
-# File checker
-###########################################################
-
-# checkFile - checks if file can be opened
-# Different from just using -f, checks if able to OPEN
-sub checkFile {
-	my ($file) = @_;
-
-	# Error check for input
-	unless (length $file) {
-		wprint("No file specified.\n");
-		return 0;
-	}
-
-	# Check if file can be opened
-	open my $tFILE, $file or do {
-		wprint(qq{Could not open "$file": $!\n});
-		return 0;
-	};
-
-	close $tFILE;
-	debugPrint(qq{"$file"" exists and opened successfully.\n});
-	return 1;
-}
-
-
-###########################################################
-# Config file check
-###########################################################
-
-# Check for config file in same dir as watson
-# If it doesn't exist, create the default one
-sub checkConfig {
-	# Should have individual .rc for each dir that watson is in
-	# This allows you to keep different preferences for different projects
-
-	# Check for rc
-	debugPrint("[Checking for $RCNAME]\n");
-	if (-e $RCNAME) {
-		debugPrint("$RCNAME found\n\n");
-		return 1;
-	}
-	else {
-		debugPrint("$RCNAME not found!\n");
-		debugPrint("Creating default $RCNAME\n");
-
-		# Create default rc
-		createRC($RCNAME);
-		return 0;
-	}
-}
-
-
-###########################################################
-# Default config file writer
-###########################################################
-
-# Create default RC file with some generic settings
-sub createRC {
-	my ($file_name) = @_;
-	open my $file, "+>>", $file_name;
-
-# [fixme] - Figure out a way to indent this?
-my $rcdefault = <<'EOF';
-# watson rc
-# watson - inline issue manager
-# [goosecode] labs / 2012
-
-
-# Directories
-[dirs]
-./
-
-
-# Tags
-[tags]
-fix
-review
-todo
-
-
-# Ignores
-[ignore]
-.git
-.swp
-EOF
-
-	debugPrint($rcdefault);
-	# Print default rc above to specified file
-	my $success = print $file $rcdefault;
-	close($file);
-	return $success;
-}
-
-
-###########################################################
-# Command line parser
-###########################################################
+#================================================#
+##################################################
+#- MAIN -----------------------------------------#
+##################################################
 
 # Parse command line arguments
 sub parseCommandLine {
@@ -614,14 +326,31 @@ sub parseCommandLine {
 	}
 	return 1;
 }
+# Check for config file in same dir as watson
+# If it doesn't exist, create the default one
+sub checkConfig {
+	# Should have individual .rc for each dir that watson is in
+	# This allows you to keep different preferences for different projects
 
+	# Check for rc
+	debugPrint("[Checking for $RCNAME]\n");
+	if (-e $RCNAME) {
+		debugPrint("$RCNAME found\n\n");
+		return 1;
+	}
+	else {
+		debugPrint("$RCNAME not found!\n");
+		debugPrint("Creating default $RCNAME\n");
 
-###########################################################
-# Config file parser
-###########################################################
+		# Create default rc
+		createRC($RCNAME);
+		return 0;
+	}
+}
 
 # Go through config file and determine dirs, tags, and ignores to use
 sub parseConfig {
+	checkConfig();
 	# Parse rc
 	debugPrint("Parsing $RCNAME\n");
 
@@ -738,11 +467,6 @@ sub parseConfig {
 	return 1;
 }
 
-
-###########################################################
-# File/Folder Parser Wrapper
-###########################################################
-
 # Start going through all files and subdirs of specified folder
 sub startScan{
 
@@ -766,175 +490,6 @@ sub startScan{
 	return 1;
 }
 
-
-###########################################################
-# Directory Parser
-###########################################################
-
-# Look through directory for files to parse
-sub parseDirs {
-	my ($dir, $depth) = @_;
-	$depth //= 1;
-	return if $MAX_DEPTH and $depth > $MAX_DEPTH;
-	debugPrint("parseDirs: |$dir| at depth $depth/$MAX_DEPTH\n");
-	return unless checkDir($dir); # Error check for input
-
-	my @pdirs;		# subdirectories found
-	my @pfiles;		# files found
-
-	# Loop through all entries in directory
-	debugPrint(qq{Looping through all files/folders in "$dir"\n});
-
-	# Open dir and get list of all files
-	opendir(my $wd, $dir);
-	ENTRY: for my $entry (sort grep !/\A\.\.?\z/, readdir $wd) {
-		# Combine dir and entry to make full path
-		my $path = "$dir/$entry";
-
-		debugPrint("path: |$path|\n");
-
-		# Make sure it isn't part of ignored list
-		# If it is, set to "", won't pass dir/file check
-		# [reviewme] - Should we warn users when file is ignored on stdout?
-		for my $ignore (@IGNORE){
-			# Check for any *.type in ignore list (list .swp)
-			# Regex to see if extension is .type, ignore if so
-			($ignore) = map qr/\A$_\z/, join '.*', map quotemeta, split /[*]/, $ignore
-				unless ref $ignore;
-			if ($entry =~ /$ignore/) {
-				debugPrint("|$path| is on the ignore list, skipping\n");
-				next ENTRY;
-			}
-		}
-
-		# Check if entry is a file, if so parse
-		if (-f $path) {
-			debugPrint("|$path| is a file!\n");
-			push @pfiles, parseFile($path);
-		}
-		# Check if entry is dir, if so parse
-		elsif (-d $path) {
-			debugPrint("|$path| is a dir!\n");
-			push @pdirs, parseDirs($path, $depth + 1);
-		}
-
-		# Add directory to ignore list so it isn't repeated again
-		push @IGNORE, $path;
-	}
-
-	closedir $wd;
-	# Create has to hold all parsed files and folders
-	return {
-		files => \@pfiles,
-		dirs => \@pdirs,
-	};
-}
-
-
-###########################################################
-# File Parser
-###########################################################
-
-sub parseFile {
-	# [fixme] - need a better check for valid files (when using @_)
-	my ($file) = @_;
-	debugPrint("parseFile: |$file|\n");
-
-	# Error check for input
-	return unless checkFile($file);
-
-	# Get filetype and set corresponding comment type
-	my $comment = getComment($file);
-
-	# Open file and seek to beginning
-	open my $wf, "<", $file;
-	seek $wf, 0, 0;
-
-	my %issueList = (
-		filename => $file,
-		(map { $_ => [] } @TAGS),
-	);
-
-	# Read source file line by line
-	while (my $line = <$wf>){
-	    # Find any comment line with [tag] - text (any comb of space and #)
-	    if ($line =~ /\s*(?:$comment)+\s*\[(\S+)\]\s*-\s*(.+)/) {
-			my ($ftag, $fissue) = ($1, $2);
-			debugPrint("Issue found!\n");
-			debugPrint("Tag: $ftag\n");
-			debugPrint("Issue: $fissue\n");
-
-			next unless exists $issueList{$ftag};
-
-			# Create hash for each issue found (for each tag)
-			my %issue = (
-				linenumber => $.,
-				comment => $fissue,
-				tag => $ftag,
-				file => $file,
-			);
-
-			# Create hash for specific issue
-			my $digest = md5_hex(@issue{qw/tag file comment/});
-			debugPrint("$digest\n");
-			$issue{md5} = $digest;
-
-			push @{$issueList{$ftag}}, \%issue;
-
-			# If Github valid, pass $issue to poster function
-			postGithub(\%issue) if $GITHUB_VALID;
-
-			# If Bitbucket valid, pass $issue to poster function
-			postBitbucket(\%issue) if $BITBUCKET_VALID;
-	    }
-	}
-
-	return \%issueList;
-}
-
-
-###########################################################
-# Comment setter
-###########################################################
-
-# Determine comment type from file extension
-sub getComment {
-	my ($file) = @_;
-	debugPrint("Getting comment type\n");
-
-	# Grab the ending extension (.something)
-	# Check to see whether it is recognized and set comment type
-	# If unrecognized, try to grab next .something extension
-	# This is to account for file.cpp.1 or file.cpp.bak, ect
-
-	my %exts;
-	$exts{$_} = qr{//} for qw/cpp cc c h c++ m mm java class cs js php go scala/; # [todo] - add /* style comment
-	$exts{$_} = qr{#}  for qw/sh rb pl pm py coffee zsh sh t/;
-	$exts{$_} = qr{--}  for qw/hs/;
-	$exts{$_} = qr{%}  for qw/erl/;
-	$exts{$_} = qr{;;}  for qw/clj/;
-	$exts{$_} = qr{<!--}  for qw/html htm css/;
-
-	my (undef, @extensions) = grep !/\s/, split /\./, $file;
-	for my $ext (reverse @extensions) {
-		# Regex for last extension
-		debugPrint("Extension: $ext\n");
-		return $exts{$ext} // next;
-	}
-
-	print box(BOLD MAGENTA "!");
-	print("--> ", RESET);
-	print("Couldn't determine filetype for $file, using # as comment\n", RESET);
-
-	# Didn't find any match, return error (and just use #)
-	return qr{#};
-}
-
-
-###########################################################
-# Result Printer Wrapper
-###########################################################
-
 # Format the parsed file data and output it nicely
 sub createReport {
 	# Display output for each file parsed
@@ -950,76 +505,10 @@ sub createReport {
 	return 1;
 }
 
-
-###########################################################
-# Individual Result Printer
-###########################################################
-
-# Print results from parsing all pretty and stuff
-sub printResults {
-	my ($entry) = @_;
-	# Go through and print info for all files first
-	for my $file_report (@{$entry->{files}}) {
-
-		# [fixme] - Same foreach performed below, combine somehow?
-
-		# Go through and see if there are any issues with given file
-		# Sets print color and whether to continue to print
-		my $issueflag = grep { 0+@{$file_report->{$_}} } @TAGS;
-
-		if ($issueflag){
-			wprint("\n");
-			wprint(box(BOLD RED "x"));
-			wprint(UNDERLINE BOLD RED $file_report->{filename}, RESET);
-		}
-		else {
-			wprint(box(BOLD GREEN "o"));
-			wprint(UNDERLINE BOLD GREEN $file_report->{filename}, RESET);
-		}
-
-		wprint("\n");
-
-		# If there are no issues, don't print anything (go to next file)
-		# Else, continue on and print the issues
-		next unless $issueflag;
-
-		# Cycle through all tags and print issues for each
-		for my $tag (@TAGS){
-			my @issues = @{$file_report->{$tag}} or next;
-
-			# Print tag, line #, and issue
-			wprint(box(BOLD BLUE $tag), "\n");
-
-			for my $issue (@issues) {
-				wprint(WHITE "  line $issue->{linenumber} - ", RESET);
-				wprint(BOLD "$issue->{comment} ", RESET);
-
-				# If valid API key
-				# Check if issue has been closed on Github or Bitbucket, set to resolved
-				wprint(box(BOLD GREEN "Resolved on GitHub"))
-					if	$GITHUB_VALID
-					and	$GITHUB_CLOSED_ISSUES =~ m/$issue->{md5}/;
-
-				wprint(box(BOLD GREEN "Resolved on Bitbucket"))
-					if 	$BITBUCKET_VALID
-					and	$BITBUCKET_CLOSED_ISSUES =~ m/$issue->{md5}/;
-
-				wprint("\n");
-			}
-			wprint("\n");
-		}
-	}
-
-	printResults($_) for @{$entry->{dirs}};
-
-	return 1;
-}
-
-
-###########################################################
-# GitHub Setup
-###########################################################
-
+#================================================#
+##################################################
+#- CVS Related  ---------------------------------#
+##################################################
 # Obtain API key for either Github
 sub githubSetup {
 	# JSON Response var
@@ -1266,11 +755,6 @@ sub githubSetup {
 	cExit(0);
 }
 
-
-###########################################################
-# Github Issue Getter
-###########################################################
-
 # Post issues to github/bitbucket
 sub getGithubIssues {
 	# Only attempt if API is specified
@@ -1305,13 +789,7 @@ sub getGithubIssues {
 	else {
 		debugPrint("No GitHub API, ignoring issue list\n");
 	}
-
 }
-
-
-###########################################################
-# Github Issue Poster
-###########################################################
 
 # Post issues to github/bitbucket
 sub postGithub {
@@ -1351,14 +829,7 @@ sub postGithub {
 			debugPrint($response);
 		}
 	}
-
-
 }
-
-
-###########################################################
-# Bitbucket Setup
-###########################################################
 
 # Set up Bitbucket access
 # [todo] - Only basic http auth, get OAuth for Bitbucket
@@ -1541,11 +1012,6 @@ sub bitbucketSetup {
 	cExit(0);
 }
 
-
-###########################################################
-# Bitbucket Issue Getter
-###########################################################
-
 # Post issues to github/bitbucket
 sub getBitbucketIssues {
 	# Only attempt if repo is specified
@@ -1601,11 +1067,6 @@ sub getBitbucketIssues {
 	}
 }
 
-
-###########################################################
-# Bitbucket Issue Poster
-###########################################################
-
 # Post issues to github/bitbucket
 sub postBitbucket {
 	my ($issue) = @_;
@@ -1649,19 +1110,162 @@ sub postBitbucket {
 	}
 }
 
+#================================================#
+##################################################
+#- PRINT/CLEANLINESS RELATED --------------------#
+##################################################
+# Print watson header
+sub printHeader {
+	wprint(BOLD "------------------------------\n");
+	wprint(BOLD "watson", RESET);
+	wprint(" - ");
+	wprint(BOLD YELLOW "inline issue manager\n\n", RESET);
+	my $pwd = `pwd`;
+	wprint("Run in: $pwd");
+	my $time = localtime;
+	wprint("Run @ $time\n");
+	wprint(BOLD "------------------------------\n\n");
+	return 1;
+}
 
-##########################
+# Print watson help
+sub printHelp {
+	print BOLD, <<'END_HELP', RESET;
+Usage: watson [OPTION]...
+Running watson with no arguments will parse with settings in RC file
+If no RC file exists, default RC file will be created
+
+   -d, --dirs			list of directories to search in
+   -f, --files			list of files to search in
+   -h, --help			say help
+   -i, --ignore			list of files, directories, or types to ignore
+   -p, --parse-depth		depth to recursively parse directories
+   -r, --remote			list / create tokens for Bitbucket/Github
+   -t, --tags			list of tags to search for
+   -v, --version		say watson version and info
+
+Any number of files, tags, dirs, and ignores can be listed after flag
+Ignored files should be space separated
+To use *.filetype identifier, encapsulate in \"\" to avoid shell substitutions
+
+
+Report bugs to: watson\@goosecode.com
+watson home page: <http://goosecode.com/projects/watson>
+[goosecode] labs | 2012-2013";
+END_HELP
+
+	return 1;
+}
+
+# TODO(eugenek): This shoudl be using a version var
+sub printVersion {
+	print <<'END_VERSION';
+watson v1.3
+Copyright (c) 2012-2013 goosecode labs
+Licensed under MIT, see LICENSE for details
+
+Written by nhmood, see <http://goosecode.com/projects/watson>
+END_VERSION
+
+	return 1;
+}
+
+# Print results from parsing all pretty and stuff
+sub printResults {
+	my ($entry) = @_;
+	# Go through and print info for all files first
+	for my $file_report (@{$entry->{files}}) {
+
+		# [fixme] - Same foreach performed below, combine somehow?
+
+		# Go through and see if there are any issues with given file
+		# Sets print color and whether to continue to print
+		my $issueflag = grep { 0+@{$file_report->{$_}} } @TAGS;
+
+		if ($issueflag){
+			wprint("\n");
+			wprint(box(BOLD RED "x"));
+			wprint(UNDERLINE BOLD RED $file_report->{filename}, RESET);
+		}
+		else {
+			wprint(box(BOLD GREEN "o"));
+			wprint(UNDERLINE BOLD GREEN $file_report->{filename}, RESET);
+		}
+
+		wprint("\n");
+
+		# If there are no issues, don't print anything (go to next file)
+		# Else, continue on and print the issues
+		next unless $issueflag;
+
+		# Cycle through all tags and print issues for each
+		for my $tag (@TAGS){
+			my @issues = @{$file_report->{$tag}} or next;
+
+			# Print tag, line #, and issue
+			wprint(box(BOLD BLUE $tag), "\n");
+
+			for my $issue (@issues) {
+				wprint(WHITE "  line $issue->{linenumber} - ", RESET);
+				wprint(BOLD "$issue->{comment} ", RESET);
+
+				# If valid API key
+				# Check if issue has been closed on Github or Bitbucket, set to resolved
+				wprint(box(BOLD GREEN "Resolved on GitHub"))
+					if	$GITHUB_VALID
+					and	$GITHUB_CLOSED_ISSUES =~ m/$issue->{md5}/;
+
+				wprint(box(BOLD GREEN "Resolved on Bitbucket"))
+					if 	$BITBUCKET_VALID
+					and	$BITBUCKET_CLOSED_ISSUES =~ m/$issue->{md5}/;
+
+				wprint("\n");
+			}
+			wprint("\n");
+		}
+	}
+
+	printResults($_) for @{$entry->{dirs}};
+
+	return 1;
+}
+
+# Clean exit function that removes temp files
+sub cExit {
+	my ($exit_status) = @_;
+
+	unlink $TMPOUT or warn "Could not remove $TMPOUT: $!" if (-e $TMPOUT);
+
+	# If exit status is INT(terupt), set to 1 and print newline
+	if ($exit_status eq "INT"){
+		$exit_status = 1;
+		print "\n";
+	}
+	exit $exit_status;
+}
+
+sub debugPrint {
+	print @_ if $DEBUG;
+}
+
+# If system has less, dump all output to .tmp file and use less
+# If no less, just print straight to stdout
+sub wprint {
+	if ($HASLESS){
+		print $LESSOUT @_;
+		return 1;
+	}
+	else {
+		print @_;
+		return 0;
+	}
+}
+
 # Box glyph, e.g [!], [x]
-##########################
-
 sub box {
 	my $content = join '', @_;
 	return BOLD, "[ ", RESET, $content, RESET, BOLD, " ] ", RESET;
 }
-
-#########
-# prompt
-#########
 
 sub prompt {
 	my %config = (
@@ -1680,3 +1284,242 @@ sub prompt {
 	return $answer;
 }
 
+#================================================#
+##################################################
+#- OTHER FUNCTIONS ------------------------------#
+##################################################
+
+
+# Determine comment type from file extension
+sub getComment {
+	my ($file) = @_;
+	debugPrint("Getting comment type\n");
+
+	# Grab the ending extension (.something)
+	# Check to see whether it is recognized and set comment type
+	# If unrecognized, try to grab next .something extension
+	# This is to account for file.cpp.1 or file.cpp.bak, ect
+
+	my %exts;
+	$exts{$_} = qr{//} for qw/cpp cc c h c++ m mm java class cs js php go scala/; # [todo] - add /* style comment
+	$exts{$_} = qr{#}  for qw/sh rb pl pm py coffee zsh sh t/;
+	$exts{$_} = qr{--}  for qw/hs/;
+	$exts{$_} = qr{%}  for qw/erl/;
+	$exts{$_} = qr{;;}  for qw/clj/;
+	$exts{$_} = qr{<!--}  for qw/html htm css/;
+
+	my (undef, @extensions) = grep !/\s/, split /\./, $file;
+	for my $ext (reverse @extensions) {
+		# Regex for last extension
+		debugPrint("Extension: $ext\n");
+		return $exts{$ext} // next;
+	}
+
+	print box(BOLD MAGENTA "!");
+	print("--> ", RESET);
+	print("Couldn't determine filetype for $file, using # as comment\n", RESET);
+
+	# Didn't find any match, return error (and just use #)
+	return qr{#};
+}
+
+# Different from just using -d, checks if able to OPEN
+sub checkDir {
+	my ($dir) = @_;
+
+	unless (length $dir) {
+		wprint("No directories specified.\n");
+		return 0;
+	}
+
+	# Check if directory can be opened
+	opendir my $tDIR, $dir or do {
+		wprint(qq{Cannot open dir "$dir": $!\n});
+		return 0;
+	};
+
+	closedir $tDIR;
+	debugPrint(qq{"$dir" exists and opened successfully.\n});
+	return 1;
+}
+
+# Different from just using -f, checks if able to OPEN
+sub checkFile {
+	my ($file) = @_;
+
+	unless (length $file) {
+		wprint("No file specified.\n");
+		return 0;
+	}
+
+	# Check if file can be opened
+	open my $tFILE, $file or do {
+		wprint(qq{Could not open "$file": $!\n});
+		return 0;
+	};
+
+	close $tFILE;
+	debugPrint(qq{"$file"" exists and opened successfully.\n});
+	return 1;
+}
+
+# Look through directory for files to parse
+sub parseDirs {
+	my ($dir, $depth) = @_;
+	$depth //= 1;
+	return if $MAX_DEPTH and $depth > $MAX_DEPTH;
+	debugPrint("parseDirs: |$dir| at depth $depth/$MAX_DEPTH\n");
+	return unless checkDir($dir); # Error check for input
+
+	my @pdirs;		# subdirectories found
+	my @pfiles;		# files found
+
+	# Loop through all entries in directory
+	debugPrint(qq{Looping through all files/folders in "$dir"\n});
+
+	# Open dir and get list of all files
+	opendir(my $wd, $dir);
+	ENTRY: for my $entry (sort grep !/\A\.\.?\z/, readdir $wd) {
+		# Combine dir and entry to make full path
+		my $path = "$dir/$entry";
+
+		debugPrint("path: |$path|\n");
+
+		# Make sure it isn't part of ignored list
+		# If it is, set to "", won't pass dir/file check
+		# [reviewme] - Should we warn users when file is ignored on stdout?
+		for my $ignore (@IGNORE){
+			# Check for any *.type in ignore list (list .swp)
+			# Regex to see if extension is .type, ignore if so
+			($ignore) = map qr/\A$_\z/, join '.*', map quotemeta, split /[*]/, $ignore
+				unless ref $ignore;
+			if ($entry =~ /$ignore/) {
+				debugPrint("|$path| is on the ignore list, skipping\n");
+				next ENTRY;
+			}
+		}
+
+		# Check if entry is a file, if so parse
+		if (-f $path) {
+			debugPrint("|$path| is a file!\n");
+			push @pfiles, parseFile($path);
+		}
+		# Check if entry is dir, if so parse
+		elsif (-d $path) {
+			debugPrint("|$path| is a dir!\n");
+			push @pdirs, parseDirs($path, $depth + 1);
+		}
+
+		# Add directory to ignore list so it isn't repeated again
+		push @IGNORE, $path;
+	}
+
+	closedir $wd;
+	# Create has to hold all parsed files and folders
+	return {
+		files => \@pfiles,
+		dirs => \@pdirs,
+	};
+}
+
+sub parseFile {
+	# [fixme] - need a better check for valid files (when using @_)
+	my ($file) = @_;
+	debugPrint("parseFile: |$file|\n");
+
+	# Error check for input
+	return unless checkFile($file);
+
+	# Get filetype and set corresponding comment type
+	my $comment = getComment($file);
+
+	# Open file and seek to beginning
+	open my $wf, "<", $file;
+	seek $wf, 0, 0;
+
+	my %issueList = (
+		filename => $file,
+		(map { $_ => [] } @TAGS),
+	);
+
+	# Read source file line by line
+	while (my $line = <$wf>){
+	    # Find any comment line with [tag] - text (any comb of space and #)
+	    if ($line =~ /\s*(?:$comment)+\s*\[(\S+)\]\s*-\s*(.+)/) {
+			my ($ftag, $fissue) = ($1, $2);
+			debugPrint("Issue found!\n");
+			debugPrint("Tag: $ftag\n");
+			debugPrint("Issue: $fissue\n");
+
+			next unless exists $issueList{$ftag};
+
+			# Create hash for each issue found (for each tag)
+			my %issue = (
+				linenumber => $.,
+				comment => $fissue,
+				tag => $ftag,
+				file => $file,
+			);
+
+			# Create hash for specific issue
+			my $digest = md5_hex(@issue{qw/tag file comment/});
+			debugPrint("$digest\n");
+			$issue{md5} = $digest;
+
+			push @{$issueList{$ftag}}, \%issue;
+
+			# If Github valid, pass $issue to poster function
+			postGithub(\%issue) if $GITHUB_VALID;
+
+			# If Bitbucket valid, pass $issue to poster function
+			postBitbucket(\%issue) if $BITBUCKET_VALID;
+	    }
+	}
+
+	return \%issueList;
+}
+
+# Check to see if system has less
+# TODO(eugenek): Just set t his with the global vars, anon function
+sub checkLess {
+	$HASLESS |= !system("which less > /dev/null 2>&1") or return 0;
+	open $LESSOUT, "+>", $TMPOUT;
+	return 1;
+}
+
+# Create default RC file with some generic settings
+sub createRC {
+	my ($file_name) = @_;
+	open my $file, "+>>", $file_name;
+
+# [fixme] - Figure out a way to indent this?
+my $rcdefault = <<'EOF';
+# watson rc
+# watson - inline issue manager
+# [goosecode] labs / 2012
+
+
+# Directories
+[dirs]
+./
+
+
+# Tags
+[tags]
+fix
+review
+todo
+
+
+# Ignores
+[ignore]
+.git
+.swp
+EOF
+
+	debugPrint($rcdefault);
+	# Print default rc above to specified file
+	my $success = print $file $rcdefault;
+	close($file);
+	return $success;
+}
