@@ -4,34 +4,31 @@
 # eugenekolo @ [kolobyte] | 2015-
 # nhmood @ [goosecode labs] | 2012-2015
 
-# [todo] - add priority listing for tags and todo
-# [todo] - generate .html file with report
-# [todo] - add text editor/jump to code for each item in .html report
-# [todo] - if x is placed in todo [!] then move it to separate file
-# [todo] - store in separate file or parse every time? (thinking parse)
-# [todo] - tell when directory changes with some header
-# [todo] - change @IGNOREDIR to hash instead of array for efficiency
-# [todo] - only allow user to check executing users files (setuid exploit)
-# [todo] - wrap printed lines around 80 characters
-# [todo] - command line option to remove remote repos
-# [todo] - replace json parser with just grep? need to get status if failed
-# [todo] - add ability to update issue if same title but different md5
-# [todo] - implement local only reporting (make it default?)
-# [todo] - progress bar for obtaining github/bitbucket issue list
-# [todo] - local should be default, must use -r or remote flag to post and check?
+# TODO(eugenek): [HIGH] Add more customizability to tags
+# TODO(nhmood): [HIGH] progress bar for obtaining github/bitbucket issue list
+# TODO(nhmood): [HIGH] add remote / local options and necessary logic
+
+# TODO(nhmood): [MEDIUM] command line option to remove remote repos
+# TODO(nhmood): [MEDIUM] generate .html file with report
+# TODO(nhmood): [MEDIUM] wrap printed lines around 80 characters
+# TODO(eugenek): [MEDIUM] store in separate file or parse every time? Faster if do it only on changes
+# TODO(nhmood): [MEDIUM] add ability to update issue if same title but different md5
+# TODO(nhmood): [MEDIUM] implement local only reporting (make it default?)
+
+# TODO(nhmood): [LOW] change @IGNOREDIR to hash instead of array for efficiency
+# TODO(nhmood): [LOW] add priority listing for tags and todo
+# TODO(nhmood): [LOW] eugenek: No clue what this is saying -  if x is placed in todo [!] then move it to separate file
+# TODO(nhmood): [LOW] replace json parser with just grep? need to get status if failed
+# TODO(nhmood): l[LOW] ocal should be default, must use -r or remote flag to post and check?
 #		 - maybe have it check against background unless -local is passed
 #		 - but dont post unless --post is used (make it faster?)
-# [todo] - add status indicator for remote requests
-#		 - we know # of requests and which we are on, can do it that way
-# [todo] - change github issue checks to -d instead of issue?key=val
-# [todo] - add remote / local options and necessary logic
-# [todo] - replace open/closed issue var with just all and closed?
+# TODO(nhmood): [LOW] change github issue checks to -d instead of issue?key=val
 
 ###########################################################
 # Global parameters
 ###########################################################
 # App Config
-my $DEBUG = 1;
+my $DEBUG = 0;
 my $RCNAME = ".watsonrc"; # Change config file name
 my $TMPOUT = ".watsonresults";	# Change tmp file name
 
@@ -808,7 +805,7 @@ sub postGithub {
 }
 
 # Set up Bitbucket access
-# [todo] - Only basic http auth, get OAuth for Bitbucket
+# TODO(nhmood): Only basic http auth, get OAuth for Bitbucket
 # Bitbucket OAuth needs to redirect to some grant access page
 # Not sure how to do that with a CLI, basic HTTP auth for now
 sub bitbucketSetup {
@@ -1277,7 +1274,7 @@ sub getComment {
 	# This is to account for file.cpp.1 or file.cpp.bak, ect
 
 	my %exts;
-	$exts{$_} = qr{//} for qw/cpp cc c h c++ m mm java class cs js php go scala/; # [todo] - add /* style comment
+	$exts{$_} = qr{//} for qw/cpp cc c h c++ m mm java class cs js php go scala/; # TODO(nhmood): add /* style comment
 	$exts{$_} = qr{#}  for qw/sh rb pl pm py coffee zsh sh t/;
 	$exts{$_} = qr{--}  for qw/hs/;
 	$exts{$_} = qr{%}  for qw/erl/;
