@@ -1,13 +1,13 @@
 # watson-kolo
 ### an inline todo and issue manager
-Watson is a tool for creating and tracking bug reports, issues, and internal notes in code.    
+watson is a tool for creating and tracking bug reports, issues, and internal notes in code.    
 See watson in action [here](http://goosecode.com/watson) ([mirror](http://nhmood.github.io/watson-perl))
 
 ## Installation
-watson-kolo is self contained in a single file and has **no** CPAN dependencies.  
+watson is self contained in a single file and has **no** CPAN dependencies.  
 ```
 # Download watson and set watson to executable
-wget https://raw.github.com/nhmood/watson-perl/master/watson -O watson
+wget https://raw.githubusercontent.com/eugenekolo/watson-perl/master/watson -O watson
 sudo chmod +x watson 
 sudo cp watson /usr/bin
 ```
@@ -59,7 +59,9 @@ Currently, OAuth has yet to be implemented for Bitbucket so the Bitbucket userna
 
 The remote related .watsonrc options shouldn't need to be edited manually, as they are automatically populated when the -r, --remote setup is called.
 
-## Special Thanks
+## History
+watson-kolo is a new maintained Perl version of watson originally by goosecode.com. 
+
 Special thanks to [@samirahmed](http://twitter.com/samirahmed) for his super Ruby help and testing watson-ruby!  
 Special thanks to [@eugenekolo](http://twitter.com/eugenekolo) for his super Perl help!  
 Special thanks to [@crowell](http://github.com/crowell) for helping test out watson-ruby!
