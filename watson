@@ -83,11 +83,7 @@ use constant BITBUCKET => 1;
 #----------------------------------------------------------
 # Main Program
 #----------------------------------------------------------
-
-# TODO(eugenek): Group these into startup
-checkLess();
-printHeader();
-
+startUp();
 parseCommandLine();
 parseConfig();
 startScan();
@@ -98,7 +94,11 @@ createReport();
 #- MAIN -----------------------------------------#
 ##################################################
 
-# Parse command line arguments
+sub startUp {
+	checkLess();
+	printHeader();
+}
+
 sub parseCommandLine {
 	debugPrint("[Checking CL args]\n");
 	debugPrint("Total args: ", $#ARGV + 1, "\n");
@@ -326,29 +326,7 @@ sub parseCommandLine {
 	}
 	return 1;
 }
-# Check for config file in same dir as watson
-# If it doesn't exist, create the default one
-sub checkConfig {
-	# Should have individual .rc for each dir that watson is in
-	# This allows you to keep different preferences for different projects
 
-	# Check for rc
-	debugPrint("[Checking for $RCNAME]\n");
-	if (-e $RCNAME) {
-		debugPrint("$RCNAME found\n\n");
-		return 1;
-	}
-	else {
-		debugPrint("$RCNAME not found!\n");
-		debugPrint("Creating default $RCNAME\n");
-
-		# Create default rc
-		createRC($RCNAME);
-		return 0;
-	}
-}
-
-# Go through config file and determine dirs, tags, and ignores to use
 sub parseConfig {
 	checkConfig();
 	# Parse rc
@@ -467,7 +445,6 @@ sub parseConfig {
 	return 1;
 }
 
-# Start going through all files and subdirs of specified folder
 sub startScan{
 
 	# If files passed to command line, push those to structure
@@ -490,7 +467,6 @@ sub startScan{
 	return 1;
 }
 
-# Format the parsed file data and output it nicely
 sub createReport {
 	# Display output for each file parsed
 	for my $entry (@STRUCTURE){
@@ -507,7 +483,7 @@ sub createReport {
 
 #================================================#
 ##################################################
-#- CVS Related  ---------------------------------#
+#- VCS Related  ---------------------------------#
 ##################################################
 # Obtain API key for either Github
 sub githubSetup {
@@ -1479,14 +1455,6 @@ sub parseFile {
 	return \%issueList;
 }
 
-# Check to see if system has less
-# TODO(eugenek): Just set t his with the global vars, anon function
-sub checkLess {
-	$HASLESS |= !system("which less > /dev/null 2>&1") or return 0;
-	open $LESSOUT, "+>", $TMPOUT;
-	return 1;
-}
-
 # Create default RC file with some generic settings
 sub createRC {
 	my ($file_name) = @_;
@@ -1522,4 +1490,34 @@ EOF
 	my $success = print $file $rcdefault;
 	close($file);
 	return $success;
+}
+
+# Check to see if system has less
+# TODO(eugenek): Just set t his with the global vars, anon function
+sub checkLess {
+	$HASLESS |= !system("which less > /dev/null 2>&1") or return 0;
+	open $LESSOUT, "+>", $TMPOUT;
+	return 1;
+}
+
+# Check for config file in same dir as watson
+# If it doesn't exist, create the default one
+sub checkConfig {
+	# Should have individual .rc for each dir that watson is in
+	# This allows you to keep different preferences for different projects
+
+	# Check for rc
+	debugPrint("[Checking for $RCNAME]\n");
+	if (-e $RCNAME) {
+		debugPrint("$RCNAME found\n\n");
+		return 1;
+	}
+	else {
+		debugPrint("$RCNAME not found!\n");
+		debugPrint("Creating default $RCNAME\n");
+
+		# Create default rc
+		createRC($RCNAME);
+		return 0;
+	}
 }
